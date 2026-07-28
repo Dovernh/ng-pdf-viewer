@@ -87,7 +87,7 @@ jobs:
         run: |
           git add "$LIB_DIR/package.json"
           git commit -m "chore(release): ${{ steps.bump.outputs.version }}"
-          git tag "${{ steps.bump.outputs.version }}"
+          git tag -a "${{ steps.bump.outputs.version }}" -m "${{ steps.bump.outputs.version }}"
           git push origin HEAD --follow-tags
 
       - name: Create GitHub Release
