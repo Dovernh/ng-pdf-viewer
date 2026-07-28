@@ -1,0 +1,101 @@
+name: Release library
+
+# Run this manually: GitHub → Actions → "Release library" → Run workflow.
+# Pick the bump type; the job versions, builds, publishes to npm, tags, and
+# creates a GitHub Release. No self-hosted/local runner needed.
+on:
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: 'Version bump'
+        type: choice
+        required: true
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+      dry-run:
+        description: 'Build & pack only — skip npm publish, tag, and release'
+        type: boolean
+        default: false
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the version-bump commit + tag and create the Release
+      packages: write # publish to GitHub Packages
+    env:
+      LIB_DIR: projects/ng-pdf-viewer-lib
+      DIST_DIR: dist/ng-pdf-viewer-lib
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@dovernh'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump library version
+        id: bump
+        run: |
+          NEW_VERSION=$(npm version "${{ inputs.release-type }}" \
+            --no-git-tag-version --prefix "$LIB_DIR")
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Bumped to ${NEW_VERSION}"
+
+      - name: Build library (production)
+        run: npm run build:lib:prod
+
+      - name: Pack tarball
+        working-directory: ${{ env.DIST_DIR }}
+        run: npm pack
+
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ng-pdf-viewer-lib-${{ steps.bump.outputs.version }}
+          path: ${{ env.DIST_DIR }}/*.tgz
+          if-no-files-found: error
+
+      - name: Publish to GitHub Packages
+        if: ${{ !inputs.dry-run }}
+        working-directory: ${{ env.DIST_DIR }}
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
+
+      - name: Commit, tag, and push
+        if: ${{ !inputs.dry-run }}
+        run: |
+          git add "$LIB_DIR/package.json"
+          git commit -m "chore(release): ${{ steps.bump.outputs.version }}"
+          git tag "${{ steps.bump.outputs.version }}"
+          git push origin HEAD --follow-tags
+
+      - name: Create GitHub Release
+        if: ${{ !inputs.dry-run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.bump.outputs.version }}" \
+            "$DIST_DIR"/*.tgz \
+            --title "${{ steps.bump.outputs.version }}" \
+            --generate-notes

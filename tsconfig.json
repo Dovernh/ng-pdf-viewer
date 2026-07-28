@@ -7,6 +7,11 @@
     "noPropertyAccessFromIndexSignature": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
+    "paths": {
+      // Point at the library source so the showcase consumes it live via `ng serve`.
+      // Editing the lib is reflected immediately — no build/pack needed until CI packs it.
+      "ng-pdf-viewer-lib": ["./projects/ng-pdf-viewer-lib/src/public-api.ts"]
+    },
     "skipLibCheck": true,
     "isolatedModules": true,
     "experimentalDecorators": true,
@@ -19,5 +24,19 @@
     "strictInjectionParameters": true,
     "strictInputAccessModifiers": true
   },
-  "files": []
+  "files": [],
+  "references": [
+    {
+      "path": "./projects/ng-pdf-viewer-lib/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/ng-pdf-viewer-lib/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/showcase/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/showcase/tsconfig.spec.json"
+    }
+  ]
 }

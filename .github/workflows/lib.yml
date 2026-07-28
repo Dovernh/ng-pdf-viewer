@@ -1,0 +1,38 @@
+name: Library CI
+
+# Continuous integration: build and pack the library on every push/PR so a
+# broken build is caught early. Publishing is handled by release.yml.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build & pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build library (production)
+        run: npm run build:lib:prod
+
+      - name: Pack tarball
+        working-directory: dist/ng-pdf-viewer-lib
+        run: npm pack
+
+      - name: Upload packed tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: ng-pdf-viewer-lib-tarball
+          path: dist/ng-pdf-viewer-lib/*.tgz
+          if-no-files-found: error
